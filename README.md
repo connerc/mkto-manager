@@ -68,5 +68,8 @@ Example BulkProcess Config
 
 ### TODOs
 - [ ] Implement Lead classes
-- [ ] Increase `MktoResponse` validation
+- [ ] Implement User Management classes
+- [ ] Improve `BaseAsset` validation with Joi
+- [ ] Improve `MktoResponse` validation with Joi
+- [ ] Implement Event Emitter on MktoRequest (for database hooks)
 - [ ] Implement Event Emitter on BulkProcess
