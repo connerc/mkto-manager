@@ -1,6 +1,6 @@
 # MktoManager
 
-Dedicated Node logic for scripting automated changes and reports for Marketo instances.
+Dedicated Node logic for scripting automated changes and reports for Marketo instances. Emphasis on Asset (Email, Landing Page, Form, File, Folder) interactions, as well as Lead, and User connectivity.
 
 ## Library
 All Marketo API logic is contained within `lib/`. The Root will also contain interfaces for using the API Instances via CLI, Node Apps, etc.
