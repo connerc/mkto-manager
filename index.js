@@ -6,8 +6,8 @@ const path = require('path')
  * Load our MktoManager Handlers, with BaseAsset auto instantiating the MktoRequest element
  */
 //require('dotenv').config()
-console.log('ENVIRO: ', process.env.ENVIRO)
-console.log('!!')
+//console.log('ENVIRO: ', process.env.ENVIRO)
+//console.log('!!')
 
 //  Mkto Config
 //const config = require(path.join(__dirname, `./config/config.${process.env.ENVIRO}`))
