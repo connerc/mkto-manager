@@ -31,7 +31,24 @@ const marketoRestCredentails = {
 const { mktoManager } = new MktoInit(marketoRestCredentails)
 ```
 
-#### Static methods are offered for querying the API for an Asset type
+
+## Assets
+
++ `mktoManager.assets.Channel`
++ `mktoManager.assets.Email`
++ `mktoManager.assets.EmailTemplate`
++ `mktoManager.assets.File`
++ `mktoManager.assets.Folder`
++ `mktoManager.assets.Form`
++ `mktoManager.assets.LandingPage`
++ `mktoManager.assets.LandingPageRedirect`
++ `mktoManager.assets.LandingPageTemplate`
++ `mktoManager.assets.Program`
++ `mktoManager.assets.Segment`
++ `mktoManager.assets.SmartCampaign`
++ `mktoManager.assets.SmartList`
+
+#### Static methods are offered for querying the API for an Asset
 
 ```js
 //  Find Landing Page by ID
@@ -59,7 +76,7 @@ All Marketo API logic is contained within `lib/`. ~~The root will also contain i
 
 `lib/index.js` will read the `lib/assets/` directory and load all Asset Handlers into the module export. This include `BaseAsset`, which all other Asset Handlers are based on. Usage, User, and Lead Handler library information is also consumed here.
 
-**All HTTP request methods are asynchronous and return Promises using Async/Await.**
+:warning: **All HTTP request methods are asynchronous and return Promises using Async/Await.**
 
 #### BaseAsset
 
@@ -81,7 +98,7 @@ if(mySpecialLandingPage.get("name") === "My Special LandingPage") {
 
 ```
 
-At this point, the instance of `mySpecialLandingPage` has some of it's properties changed, but the Update call has not been made to the API. 
+At this point, the instance of `mySpecialLandingPage` has one of it's properties changed, but the Update call has not been made to the API. 
 
 You can check if a record instance has pending updated property data with the getter properties:
 ```js
@@ -91,28 +108,43 @@ if(mySpecialLandingPage.isChanged) {
 
     //  Get the properties that have been changed
     console.log( mySpecialLandingPage.changedData )
-    /*
-    Prints: {
-        name: "My Special Updated Landing Page"
-    }
-    */
+    //  Prints: {
+    //    name: "My Special Updated Landing Page"
+    //  }
 }
 ```
 
 
-Static methods for searching for Assets are offered to streamline asset retrieval.
+Now that we have updated the local instance of the API Record, we can make the update call to POST the updated data back to Marketo:
 
 ```js
-
+const updateMktoResponse = await mySpecialLandingPage.update()
 ```
+
+This returns a new instance of `MktoResponse` - you check for API success the same way. 
+```js
+if(updateMktoResponse.success === true) {
+    //  Successful update of the Landing Page name property!
+    //  The record self updates, so it no longer is "changed"
+    //  mySpecialLandingPage.isChanged === false
+}
+```
+The original record self updates it's property tracking to aknowledge the `update()` success, meaning `isChanged` will now be `false`.
+
 
 #### Mixins
 
-To standardize and consolidate certain record type logic, shared functionality (props and methods) are written in Mixin objects and assigned to Class definitions where required.
+To standardize and consolidate certain record type logic, shared functionality (props and methods) are written in Mixin objects and assigned to Class definitions where required. 
+
+_Examples: Clone, Delete, Content, and Variable methods and property handlers._
 
 #### MktoRequest
 
 The `MktoRequest` class is a Marketo specific Axios/RateLimit/ApiConsumer wrapper that instantiates our Axios HTTP instance with necessary details to communicate with our Marketo API. `MktoRequest` accepts the necessary API credentials as parameters, and returns an object with initial methods.
+
+Uses [`axios-rate-limit`](https://github.com/aishek/axios-rate-limit) to set a default Rate Per Second to try and remain compliant with Marketo's **100 calls per 20 seconds** and **Maximum of 10 concurrent API calls**
+
+Default Rate Limit: `{maxRPS: 4}`
 
 #### MktoResponse
 
@@ -135,17 +167,72 @@ mktoManager.assets.LandingPage.find({
         //  Get all results as an array of instantaited instances of the Handler
         const allLandingPageResults = mktoResponse.getAll()
     }
+    else {
+        //  Capture Mkto API Warnings or Errors
+        const mktoWarnings = mktoResponse.warnings
+        const mktoErrors = mktoResponse.errors
+    }
+})
+```
 
+A `summary` prop is also available that offers a quick summary of Axios request and Response / Mkto API Response information - great for quickly getting a summary of the response when developing.
+```js
+mktoResponse.summary = {
+    //  Request
+    header: this._res.request._header,
+    requestURL: this._res.config.url,
+    method: this._res.config.method,
+    params: this._res.config.params,
+    //  Response
+    status: this._res.status,
+    success: this.success,
+    result: this.result,
+    errors: this.errors,
+    warnings: this.warnings,
+}
+```
+
+**Full `mktoResponse` Example Print**
+```js
     /*
     mktoResponse = {
-        success: true,  //  API Response Success
         status: 200,    //  HTTP Status Code
+        success: true,  //  API Response Success
 
-        //  Array of Instantiated Handler instance results
+        //  Array of raw JSON results
         result: [
-            { id: 1, name: 'Toaster' ....} <Instantiated Asset Results>
+            { id: 1, name: 'Toaster' ....}
             .... 
         ],
+        //  Array of Instantiated Handler instance results
+        data: [
+            <Instantiated Asset Result>
+            .... 
+        ],
+
+        //  Response Warnings and Errors
+        warnings: [
+            //  Array of Marketo Warnings, if they were sent
+            //  Defaults to empty array
+        ],
+        errors: [
+            //  Array of Marketo Errors, if they were sent
+            //  Defaults to empty array
+        ],
+
+        summary: {
+            //  Request
+            header: this._res.request._header,
+            requestURL: this._res.config.url,
+            method: this._res.config.method,
+            params: this._res.config.params,
+            //  Response
+            status: this._res.status,
+            success: this.success,
+            result: this.result,
+            errors: this.errors,
+            warnings: this.warnings,
+        }
 
         
         //  Original Marketo Response Data
@@ -168,6 +255,8 @@ mktoManager.assets.LandingPage.find({
 })
 ```
 
+---
+
 ### BulkProcess
 
 :warning: `Work in progress`
@@ -178,7 +267,7 @@ Pass `BulkProcess` a config param detailing the Asset Handler, search criteria, 
 
 Example BulkProcess Config
 
-```
+```js
 {
     handler: null, //  <BaseAsset> Asset Specific instance
 
@@ -218,7 +307,8 @@ Example BulkProcess Config
 
 -   [ ] Implement Lead classes
 -   [ ] Implement User Management classes
--   [ ] Improve `BaseAsset` validation with Joi
--   [ ] Improve `MktoResponse` validation with Joi
+-   [ ] Improve `BaseAsset` validation with Yup
+-   [ ] Improve `MktoResponse` validation with Yup
 -   [ ] Implement Event Emitter on MktoRequest (for database hooks)
 -   [ ] Implement Event Emitter on BulkProcess instead of synchronous callback system
+-   [ ] Review `MktoRequest` retry method requirement
