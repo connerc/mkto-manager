@@ -268,9 +268,9 @@ _Coming Soon_
 
 
 ## Marketo REST API Inconsistencies
-Likely due to the evolution of Marketo and its REST API over time, there are some serious inconsistencies when how the API respond Asset to Asset. 
+Likely due to the evolution of Marketo and its REST API over time, there are some serious inconsistencies with how the API responds, Asset to Asset.
 
-I have tried to standardize the interaction within this API as much as possible, but some issues are unavoidable, and should be taken into consideration.
+I have tried to standardize the API interaction within this library as much as possible. However, some issues are unavoidable and should be taken into consideration.
 
 I have documented these inconsistencies over at my personal blog: `Coming Soon`
 
