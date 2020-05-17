@@ -9,7 +9,7 @@ Dedicated Node logic for scripting automated changes and reports for Marketo ins
 ### Installation
 
 ```
-npm i --save mkto-manager
+$ npm i --save mkto-manager
 ```
 
 ### Create your Manager Object
@@ -327,11 +327,11 @@ Example BulkProcess Config
 
 
 ### TODOs
-
--   [ ] Implement Lead classes
--   [ ] Implement User Management classes
--   [ ] Improve `BaseAsset` validation with Yup
--   [ ] Improve `MktoResponse` validation with Yup
--   [ ] Implement Event Emitter on MktoRequest (for database hooks)
--   [ ] Implement Event Emitter on BulkProcess instead of synchronous callback system
--   [ ] Review `MktoRequest` retry method requirement
+- [ ] Implement Lead classes
+- [ ] Implement User Management classes
+- [ ] Improve `BaseAsset` validation with Yup
+- [ ] Improve `MktoResponse` validation with Yup
+- [ ] Review `MktoRequest` retry method requirement
+- [ ] Implement Event Emitter on `MktoRequest` (for database hooks)
+- [ ] Implement Event Emitter on BulkProcess instead of synchronous callback system
+- [ ] Develop tests and stubs for API
