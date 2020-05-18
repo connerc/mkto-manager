@@ -84,9 +84,12 @@ A retrieved Landing Page record will store it's record data (only metadata per t
 
 ```js
 //  Find Landing Page by ID
-const mySpecialLandingPage = await mktoManager.assets.LandingPage.find({
+const specialPageSearchResponse = await mktoManager.assets.LandingPage.find({
     id: 1234,
 })
+
+//  Local reference to our first (and only) Landing Page Result
+const mySpecialLandingPage = specialPageSearchResponse.getFirst()
 
 //  Check the Landing Page Name
 if (mySpecialLandingPage.get("name") === "My Special LandingPage") {
@@ -195,65 +198,64 @@ mktoResponse.summary = {
 **Full `mktoResponse` Example Print**
 
 ```js
-    /*
-    mktoResponse = {
-        status: 200,    //  HTTP Status Code
-        success: true,  //  API Response Success
+/*
+mktoResponse = {
+    status: 200,    //  HTTP Status Code
+    success: true,  //  API Response Success
 
-        //  Array of raw JSON results
-        result: [
-            { id: 1, name: 'Toaster' ....}
-            ....
-        ],
-        //  Array of Instantiated Handler instance results
-        data: [
-            <Instantiated Asset Result>
-            ....
-        ],
+    //  Array of raw JSON results
+    result: [
+        { id: 1, name: 'Toaster' ....}
+        ....
+    ],
+    //  Array of Instantiated Handler instance results
+    data: [
+        <Instantiated Asset Result>
+        ....
+    ],
 
-        //  Response Warnings and Errors
-        warnings: [
-            //  Array of Marketo Warnings, if they were sent
-            //  Defaults to empty array
-        ],
-        errors: [
-            //  Array of Marketo Errors, if they were sent
-            //  Defaults to empty array
-        ],
+    //  Response Warnings and Errors
+    warnings: [
+        //  Array of Marketo Warnings, if they were sent
+        //  Defaults to empty array
+    ],
+    errors: [
+        //  Array of Marketo Errors, if they were sent
+        //  Defaults to empty array
+    ],
 
-        summary: {
-            //  Request
-            header: this._res.request._header,
-            requestURL: this._res.config.url,
-            method: this._res.config.method,
-            params: this._res.config.params,
-            //  Response
-            status: this._res.status,
-            success: this.success,
-            result: this.result,
-            errors: this.errors,
-            warnings: this.warnings,
-        }
-
-
-        //  Original Marketo Response Data
-        _data: {
-            success: true,
-            requestId: '#asdasdasd',
-            result: [
-                { id: 1, name: 'Toaster' ....} <Instantiated Asset Results>
-                ....
-            ],
-        }
-
-        //  Reference to the Handler Instance
-        _asset: <Asset Class>,
-
-        //  Raw Axios Response
-        _res: <Raw Axios Response>
+    summary: {
+        //  Request
+        header: this._res.request._header,
+        requestURL: this._res.config.url,
+        method: this._res.config.method,
+        params: this._res.config.params,
+        //  Response
+        status: this._res.status,
+        success: this.success,
+        result: this.result,
+        errors: this.errors,
+        warnings: this.warnings,
     }
-    */
-})
+
+
+    //  Original Marketo Response Data
+    _data: {
+        success: true,
+        requestId: '#asdasdasd',
+        result: [
+            { id: 1, name: 'Toaster' ....} <Instantiated Asset Results>
+            ....
+        ],
+    }
+
+    //  Reference to the Handler Instance
+    _asset: <Asset Class>,
+
+    //  Raw Axios Response
+    _res: <Raw Axios Response>
+}
+*/
 ```
 
 
