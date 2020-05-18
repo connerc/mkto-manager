@@ -31,6 +31,8 @@ const { mktoManager } = new MktoManagerInit(marketoRestCredentails)
 
 ## Assets
 
+The primary focus of this library is for Asset management. _Some Asset handlers are still in progress._
+
 -   `mktoManager.assets.Channel`
 -   `mktoManager.assets.Email`
 -   `mktoManager.assets.EmailTemplate`
@@ -45,7 +47,7 @@ const { mktoManager } = new MktoManagerInit(marketoRestCredentails)
 -   `mktoManager.assets.SmartCampaign`
 -   `mktoManager.assets.SmartList`
 
-#### Static methods are offered for querying the API for an Asset
+#### Static methods are offered for querying the API for an Asset record
 
 ```js
 //  Find Landing Page by ID
@@ -54,15 +56,15 @@ mktoManager.assets.LandingPage.find({ id: 1234 })
 //  Find Landing Page by Parent Folder
 mktoManager.assets.LandingPage.find({
     folder: {
-        id: 123, //  Folder ID
-        type: "Folder", //  ["Program", "Folder"]
+        id: 123,            //  Folder ID
+        type: "Folder",     //  ["Program", "Folder"]
     },
 })
 
 //  Get multiple Programs
 mktoManager.assets.Program.find({
-    offset: 0, //  Offset value, like a paging token (sort of)
-    maxReturn: 200, //  Defaults to 20 per the API Docs
+    offset: 0,              //  Offset value, like a paging token (sort of)
+    maxReturn: 200,         //  Defaults to 20 per the API Docs
 })
 ```
 
@@ -74,67 +76,6 @@ All Marketo API logic is contained within `lib/`. ~~The root will also contain i
 
 :warning: **All HTTP request methods are asynchronous and return Promises using Async/Await.**
 
-### BaseAsset
-
-BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including instantiating our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
-
-**Each extended Class defines an Active Record type approach to API record management.**
-
-A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. Record properties are retrieved and set via the corresponding methods:
-
-```js
-//  Find Landing Page by ID
-const mySpecialLandingPage = await mktoManager.assets.LandingPage.find({
-    id: 1234,
-})
-
-//  Check the Landing Page Name
-if (mySpecialLandingPage.get("name") === "My Special LandingPage") {
-    //  Update the Landing Page Name
-    mySpecialLandingPage.set("name", "My Special Updated Landing Page")
-}
-```
-
-At this point, the instance of `mySpecialLandingPage` has one of it's properties changed, but the Update call has not been made to the API.
-
-You can check if a record instance has pending updated property data with the getter properties:
-
-```js
-//  Check if the record has pending changes (Not submitted to the API)
-if (mySpecialLandingPage.isChanged) {
-    //  Is true because we changed the `name` property
-
-    //  Get the properties that have been changed
-    console.log(mySpecialLandingPage.changedData)
-    //  Prints: {
-    //    name: "My Special Updated Landing Page"
-    //  }
-}
-```
-
-Now that we have updated the local instance of the API Record, we can make the update call to POST the updated data back to Marketo:
-
-```js
-const updateMktoResponse = await mySpecialLandingPage.update()
-```
-
-This returns a new instance of `MktoResponse` - you check for API success the same way.
-
-```js
-if (updateMktoResponse.success === true) {
-    //  Successful update of the Landing Page name property!
-    //  The record self updates, so it no longer is "changed"
-    //  mySpecialLandingPage.isChanged === false
-}
-```
-
-The original record self updates its property tracking to aknowledge the `update()` success, meaning `isChanged` will now be `false`.
-
-#### Mixins
-
-To standardize and consolidate certain record type logic, shared functionality (props and methods) are written in Mixin objects and assigned to Class definitions where required.
-
-_Examples: Clone, Delete, Content, and Variables methods and property handlers._
 
 ### MktoRequest
 
@@ -195,66 +136,135 @@ mktoResponse.summary = {
 **Full `mktoResponse` Example Print**
 
 ```js
-    /*
-    mktoResponse = {
-        status: 200,    //  HTTP Status Code
-        success: true,  //  API Response Success
+/*
+mktoResponse = {
+    status: 200,    //  HTTP Status Code
+    success: true,  //  API Response Success
 
-        //  Array of raw JSON results
-        result: [
-            { id: 1, name: 'Toaster' ....}
-            ....
-        ],
-        //  Array of Instantiated Handler instance results
-        data: [
-            <Instantiated Asset Result>
-            ....
-        ],
+    //  Array of raw JSON results
+    result: [
+        { id: 1, name: 'Toaster' ....}
+        ....
+    ],
+    //  Array of Instantiated Handler instance results
+    data: [
+        <Instantiated Asset Result>
+        ....
+    ],
 
-        //  Response Warnings and Errors
-        warnings: [
-            //  Array of Marketo Warnings, if they were sent
-            //  Defaults to empty array
-        ],
-        errors: [
-            //  Array of Marketo Errors, if they were sent
-            //  Defaults to empty array
-        ],
+    //  Response Warnings and Errors
+    warnings: [
+        //  Array of Marketo Warnings, if they were sent
+        //  Defaults to empty array
+    ],
+    errors: [
+        //  Array of Marketo Errors, if they were sent
+        //  Defaults to empty array
+    ],
 
-        summary: {
-            //  Request
-            header: this._res.request._header,
-            requestURL: this._res.config.url,
-            method: this._res.config.method,
-            params: this._res.config.params,
-            //  Response
-            status: this._res.status,
-            success: this.success,
-            result: this.result,
-            errors: this.errors,
-            warnings: this.warnings,
-        }
-
-
-        //  Original Marketo Response Data
-        _data: {
-            success: true,
-            requestId: '#asdasdasd',
-            result: [
-                { id: 1, name: 'Toaster' ....} <Instantiated Asset Results>
-                ....
-            ],
-        }
-
-        //  Reference to the Handler Instance
-        _asset: <Asset Class>,
-
-        //  Raw Axios Response
-        _res: <Raw Axios Response>
+    summary: {
+        //  Request
+        header: this._res.request._header,
+        requestURL: this._res.config.url,
+        method: this._res.config.method,
+        params: this._res.config.params,
+        //  Response
+        status: this._res.status,
+        success: this.success,
+        result: this.result,
+        errors: this.errors,
+        warnings: this.warnings,
     }
-    */
-})
+
+
+    //  Original Marketo Response Data
+    _data: {
+        success: true,
+        requestId: '#asdasdasd',
+        result: [
+            { id: 1, name: 'Toaster' ....} <Raw Asset Results>
+            ....
+        ],
+    }
+
+    //  Reference to the Handler Instance
+    _asset: <Asset Class reference>,
+
+    //  Raw Axios Response
+    _res: <Raw Axios Response>
+}
+*/
 ```
+
+
+---
+
+
+
+### BaseAsset
+
+BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including instantiating our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
+
+**Each extended Class defines an Active Record type approach to API record management.**
+
+A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. Record properties are retrieved and set via the corresponding methods:
+
+```js
+//  Find Landing Page by ID
+const specialPageSearchResponse = await mktoManager.assets.LandingPage.find({
+    id: 1234,
+})
+
+//  Local reference to our first (and only) Landing Page Result
+const mySpecialLandingPage = specialPageSearchResponse.getFirst()
+
+//  Check the Landing Page Name
+if (mySpecialLandingPage.get("name") === "My Special LandingPage") {
+    //  Update the Landing Page Name
+    mySpecialLandingPage.set("name", "My Special Updated Landing Page")
+}
+```
+
+At this point, the instance of `mySpecialLandingPage` has one of it's properties changed, but the Update call has not been made to the API.
+
+You can check if a record instance has pending updated property data with the getter properties:
+
+```js
+//  Check if the record has pending changes (Not submitted to the API)
+if (mySpecialLandingPage.isChanged) {
+    //  Is true because we changed the `name` property
+
+    //  Get the properties that have been changed
+    console.log(mySpecialLandingPage.changedData)
+    //  Prints: {
+    //    name: "My Special Updated Landing Page"
+    //  }
+}
+```
+
+Now that we have updated the local instance of the API Record, we can make the update call to POST the updated data back to Marketo:
+
+```js
+const updateMktoResponse = await mySpecialLandingPage.update()
+```
+
+This returns a new instance of `MktoResponse` - you check for API success the same way.
+
+```js
+if (updateMktoResponse.success === true) {
+    //  Successful update of the Landing Page name property!
+    //  The record self updates, so it no longer is "changed"
+    //  mySpecialLandingPage.isChanged === false
+}
+```
+
+The original record self updates its property tracking to aknowledge the `update()` success, meaning `isChanged` will now be `false`.
+
+#### Mixins
+
+To standardize and consolidate certain record type logic, shared functionality (props and methods) are written in Mixin objects and assigned to Class definitions where required.
+
+_Examples: Clone, Delete, Content, and Variables methods and property handlers._
 
 
 ---
@@ -282,7 +292,7 @@ I have documented these inconsistencies over at my personal blog: `Coming Soon`
 
 :warning: `Work in progress`
 
-Due to Marketo's API return limit of 200, `BulkProcess` acts as a auto-paging processor for large scale content reviews/updates.
+Due to Marketo's API return limit of 200, `BulkProcess` acts as an auto-paging processor for large scale content reviews/updates.
 
 Pass `BulkProcess` a config param detailing the Asset Handler, search criteria, and asynchronous success & error callbacks to handle large scale reviews/updates.
 
@@ -294,7 +304,7 @@ Example BulkProcess Config
 
     searchParams: {}, //  getAsset Search Params
 
-    //  Depicts if we should wait for the successCallback to finish before continuning to next iteration
+    //  Depicts if we should wait for the successCallback to finish before continuing to next iteration
     awaitSuccess: false,
     awaitError: false,
 
