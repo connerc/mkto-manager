@@ -20,7 +20,7 @@ const BulkProcess = require(path.join(__dirname, './lib/BulkProcess'))
 
 module.exports = function(creds) {
     return {
-        MktoManager: MktoManager(creds),
-        BulkProcess: BulkProcess
+        mktoManager: MktoManager(creds),
+        bulkProcess: BulkProcess
     }
 }
