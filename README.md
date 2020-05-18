@@ -294,6 +294,10 @@ I have documented these inconsistencies over at my personal blog: `Coming Soon`
 
 Due to Marketo's API return limit of 200, `BulkProcess` acts as an auto-paging processor for large scale content reviews/updates.
 
+```js
+const { bulkProcess } = new MktoManagerInit(marketoRestCredentails)
+```
+
 Pass `BulkProcess` a config param detailing the Asset Handler, search criteria, and asynchronous success & error callbacks to handle large scale reviews/updates.
 
 Example BulkProcess Config
