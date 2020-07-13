@@ -1,3 +1,8 @@
+## BETA - Use at your own risk
+I am still working out the final method corrections and improved error handling, I do not consider this ready for production use. **However, PRs are welcome if you would like to help develop this package or have opinions on how to improve the infrastructure.**
+
+---
+
 # MktoManager
 
 Dedicated Node logic for scripting automated changes and reports for Marketo instances. Emphasis on Asset (Email, Landing Page, Form, File, Folder) interactions, as well as Lead record and User record management. Written using ES6 Class definitions.
