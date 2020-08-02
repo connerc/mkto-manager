@@ -108,9 +108,9 @@ mktoManager.assets.LandingPage.find({
     if (mktoResponse.success === true) {
         //  Get the first result - still needed if you only expect 1 result
         const firstLandingPageResult = mktoResponse.getFirst()
-        //  firstLandingPageResult is an instantiated isntance of the LandingPage Handler
+        //  firstLandingPageResult is an instantiated instance of the LandingPage Handler
 
-        //  Get all results as an array of instantaited instances of the Handler
+        //  Get all results as an array of instantiated instances of the Handler
         const allLandingPageResults = mktoResponse.getAll()
     } else {
         //  Capture Mkto API Warnings or Errors
@@ -146,14 +146,15 @@ mktoResponse = {
     status: 200,    //  HTTP Status Code
     success: true,  //  API Response Success
 
-    //  Array of raw JSON results
+    //  Array of raw results
     result: [
-        { id: 1, name: 'Toaster' ....}
+        { id: 1, name: 'My Landing Page' ....}
         ....
     ],
-    //  Array of Instantiated Handler instance results
+    //  `result` Array as Instantiated Handler instances
     data: [
-        <Instantiated Asset Result>
+        <Instantiated Asset Result>,
+        <Instantiated Asset Result>,
         ....
     ],
 
