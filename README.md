@@ -5,7 +5,7 @@ I am still working out the final method corrections and improved error handling,
 
 # MktoManager
 
-Dedicated Node logic for scripting automated changes and reports for Marketo instances. Emphasis on Asset (Email, Landing Page, Form, File, Folder) interactions, as well as Lead record and User record management. Written using ES6 Class definitions.
+Dedicated Node logic for scripting automated changes and reports for Marketo instances. Emphasis on Asset (Email, Landing Page, Form, File, Folder) interactions, as well as Lead record and User record management. Written using Async/Await Axios and ES6 Class definitions.
 
 #### Read more on Marketo REST API Here: [Marketo REST Api Docs](https://developers.marketo.com/rest-api/assets/)
 
@@ -57,8 +57,10 @@ The primary focus of this library is for Asset management. _Some Asset handlers 
 ```js
 //  Find Landing Page by ID
 mktoManager.assets.LandingPage.find({ id: 1234 })
+//  The `find` method will amend and change the Endpoint URI as needed depending on the search parameters you pass
 
-//  Find Landing Page by Parent Folder
+
+//  Find Landing Pages by Parent Folder
 mktoManager.assets.LandingPage.find({
     folder: {
         id: 123,            //  Folder ID
@@ -66,21 +68,24 @@ mktoManager.assets.LandingPage.find({
     },
 })
 
+
 //  Get multiple Programs
 mktoManager.assets.Program.find({
     offset: 0,              //  Offset value, like a paging token (sort of)
-    maxReturn: 200,         //  Defaults to 20 per the API Docs
+    maxReturn: 200,         //  Defaults to 20 per the API Docs, maximum 200
 })
 ```
 
 ## Library
 
-All Marketo API logic is contained within `lib/`. ~~The root will also contain interfaces for using the API Instances via CLI, Node Apps, etc.~~
+All Marketo API logic is contained within `lib/`.
 
-`lib/index.js` will read the `lib/assets/` directory and load all Asset Handlers into the module export. This include `BaseAsset`, which all other Asset Handlers are based on. Usage, User, and Lead Handler library information is also consumed here.
+`lib/index.js` will read the `lib/assets/` directory and load all Asset Handlers into the module export. This include `BaseAsset`, which all other Asset Handlers are based on. Usage, User, and ~Lead~ Handler library information is also consumed here.
 
-:warning: **All HTTP request methods are asynchronous and return Promises using Async/Await.**
+:warning: **All HTTP request methods are asynchronous and return Promises.**
 
+
+## Core Functions
 
 ### MktoRequest
 
@@ -120,7 +125,23 @@ mktoManager.assets.LandingPage.find({
 })
 ```
 
-A `summary` prop is also available that offers a quick summary of Axios Request and Response / Mkto API Response information - _great for quickly getting a summary of the response when developing._
+#### MktoResponse Properties
+| Property | Description |
+| --- | --- |
+| `_res` | Full Axios Response Object - minus the Axios `data` property. |
+| `_resultClass` | Stores the Handler instance if one was passed. |
+| `_data` | Raw Axops `data` property. |
+| --- | --- |
+| `status` | HTTP Status Code as returned by Axios. |
+| `success` | Handler specific logic for True/False success. Successful responses can still return Zero results. |
+| `result` | Raw Marketo 'result' data, usually an array of records. |
+| `warnings` | Array of Marketo Warnings - will return empty array if no warnings. |
+| `errors` | Array of Marketo Errors - will return empty array if no errors. |
+| `data` | Handler specific - either an Array of results Instantiated as Hanlder instances, or a single Instantiated Handler object. |
+
+
+
+A `summary` prop is also available that offers a quick summary of Axios Request and Response / Mkto API Response information - _great for quickly visualizing a summary of the response when developing._
 
 ```js
 mktoResponse.summary = {
@@ -153,8 +174,8 @@ mktoResponse = {
     ],
     //  `result` Array as Instantiated Handler instances
     data: [
-        <Instantiated Asset Result>,
-        <Instantiated Asset Result>,
+        <Instantiated Handler Result>,
+        <Instantiated Handler Result>,
         ....
     ],
 
@@ -194,7 +215,7 @@ mktoResponse = {
     }
 
     //  Reference to the Handler Instance
-    _asset: <Asset Class reference>,
+    _resultClass: <Asset Class reference>,
 
     //  Raw Axios Response
     _res: <Raw Axios Response>
@@ -202,19 +223,30 @@ mktoResponse = {
 */
 ```
 
+_NOTE: MktoResponse is extended for some of the "special" Marketo endpoints, like User Management. More details below in the User section._
+
 
 ---
 
 
-
 ### BaseAsset
 
-BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including instantiating our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
+BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including the instantiation our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
 
 **Each extended Class defines an Active Record type approach to API record management.**
 
-A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. Record properties are retrieved and set via the corresponding methods:
+For example: A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. Record properties are retrieved and set via the corresponding methods:
 
+| Method/Property | Description |
+| --- | --- |
+| `Asset.data` | Object with all Asset or User record data. |
+| `Asset._data` | Object with all Asset or User record data - we store this object so to compare changes to the `data` property. |
+| `Asset.get(propertyName)` | Retrieves the given Property from the `Asset.data` object. |
+| `Asset.set(propertyName, newValue)` | Sets the given Property in the `Asset.data` object to `newValue`. |
+| `Asset.isChanged` | Boolean for depicting if a `data` property has been altered from it's original API data. |
+| `Asset.changedData` | Computed property that will always list the `data` properties that have been altered from what was last retrieved from the API (the `_data` property). |
+
+Here is an example of retrieving a record from the API, and updating one of it's properties:
 ```js
 //  Find Landing Page by ID
 const specialPageSearchResponse = await mktoManager.assets.LandingPage.find({
@@ -227,7 +259,7 @@ const mySpecialLandingPage = specialPageSearchResponse.getFirst()
 //  Check the Landing Page Name
 if (mySpecialLandingPage.get("name") === "My Special LandingPage") {
     //  Update the Landing Page Name
-    mySpecialLandingPage.set("name", "My Special Updated Landing Page")
+    mySpecialLandingPage.set("name", "My Super Special Landing Page")
 }
 ```
 
@@ -242,7 +274,8 @@ if (mySpecialLandingPage.isChanged) {
 
     //  Get the properties that have been changed
     console.log(mySpecialLandingPage.changedData)
-    //  Prints: {
+    //  Prints: 
+    //  {
     //    name: "My Special Updated Landing Page"
     //  }
 }
@@ -259,14 +292,15 @@ This returns a new instance of `MktoResponse` - you check for API success the sa
 ```js
 if (updateMktoResponse.success === true) {
     //  Successful update of the Landing Page name property!
-    //  The record self updates, so it no longer is "changed"
+    //  If the `update()` response was successful, 
+    //    the record self updates the `_data` property, 
+    //    so it no longer is "changed"
     //  mySpecialLandingPage.isChanged === false
 }
 ```
-
 The original record self updates its property tracking to aknowledge the `update()` success, meaning `isChanged` will now be `false`.
 
-#### Mixins
+### Mixins
 
 To standardize and consolidate certain record type logic, shared functionality (props and methods) are written in Mixin objects and assigned to Class definitions where required.
 
