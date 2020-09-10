@@ -137,7 +137,7 @@ mktoManager.assets.LandingPage.find({
 | `result` | Raw Marketo 'result' data, usually an array of records. |
 | `warnings` | Array of Marketo Warnings - will return empty array if no warnings. |
 | `errors` | Array of Marketo Errors - will return empty array if no errors. |
-| `data` | Handler specific - either an Array of results Instantiated as Hanlder instances, or a single Instantiated Handler object. |
+| `data` | Handler specific - either an Array of results Instantiated as Handler instances, or a single Instantiated Handler object. |
 
 
 
@@ -231,20 +231,51 @@ _NOTE: MktoResponse is extended for some of the "special" Marketo endpoints, lik
 
 ### BaseAsset
 
-BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including the instantiation our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
+BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including the instantiation of our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
 
+#### Create Asset
+To create a net-new Asset, you can instantiate an instance of the Asset Handler, and then call the `create()` method.
+
+```js
+const myNewLandingPageData = {
+    name: "My First Landing Page",  //  Page Name, required
+    description: "",                //  Page Description, optional
+    template: 9,                    //  Template ID, required
+    folder: {                       //  Folder Object, required
+        type: "Folder",
+        id: 11
+    }
+}
+
+const myNewLandingPage = new mktoManager.assets.LandingPage(myNewLandingPageData)
+
+//  Send the Create request for our new Landing Page
+const createMktoResponse = await myNewLandingPage.create();
+
+if(createMktoResponse.success === true) {
+	//  The Response Object should now contain a newly instantiated Landing Page with the data from the API, including the new ID
+	//  Get the first (and only) result
+	const myLandingPage = createMktoResponse.getFirst()
+}
+```
+
+**You can now use this instantiated instance to set your Landing Page content!**
+
+
+#### Update Asset
 **Each extended Class defines an Active Record type approach to API record management.**
 
-For example: A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. Record properties are retrieved and set via the corresponding methods:
+For example: A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. 
+Record properties are retrieved and set via the corresponding methods:
 
 | Method/Property | Description |
 | --- | --- |
 | `Asset.data` | Object with all Asset or User record data. |
-| `Asset._data` | Object with all Asset or User record data - we store this object so to compare changes to the `data` property. |
+| `Asset._data` | Object with all Asset or User record data - we store this object to compare changes to the `data` property. |
 | `Asset.get(propertyName)` | Retrieves the given Property from the `Asset.data` object. |
 | `Asset.set(propertyName, newValue)` | Sets the given Property in the `Asset.data` object to `newValue`. |
-| `Asset.isChanged` | Boolean for depicting if a `data` property has been altered from it's original API data. |
-| `Asset.changedData` | Computed property that will always list the `data` properties that have been altered from what was last retrieved from the API (the `_data` property). |
+| `Asset.isChanged` | Computed boolean for depicting if any `data` property has been altered from it's original API data. |
+| `Asset.changedData` | Computed object that will always list the `data` properties that have been altered from what was last retrieved from the API (the `_data` property). |
 
 Here is an example of retrieving a record from the API, and updating one of it's properties:
 ```js
@@ -265,7 +296,7 @@ if (mySpecialLandingPage.get("name") === "My Special LandingPage") {
 
 At this point, the instance of `mySpecialLandingPage` has one of it's properties changed, but the Update call has not been made to the API.
 
-You can check if a record instance has pending updated property data with the getter properties:
+You can check if a record instance has pending updated property data with the computed properties:
 
 ```js
 //  Check if the record has pending changes (Not submitted to the API)
@@ -285,11 +316,9 @@ Now that we have updated the local instance of the API Record, we can make the u
 
 ```js
 const updateMktoResponse = await mySpecialLandingPage.update()
-```
 
-This returns a new instance of `MktoResponse` - you check for API success the same way.
+//  This returns a new instance of `MktoResponse` - you check for API success the same way.
 
-```js
 if (updateMktoResponse.success === true) {
     //  Successful update of the Landing Page name property!
     //  If the `update()` response was successful, 
@@ -306,12 +335,245 @@ To standardize and consolidate certain record type logic, shared functionality (
 
 _Examples: Clone, Delete, Content, and Variables methods and property handlers._
 
+#### Variables
+```js
+Asset.getVariables({
+    status: 'approved'  //  Optional, ['approved', 'draft']
+})
+
+Asset.updateVariables(variableId, newValue)
+```
+
+#### Content
+```js
+Asset.getContent({
+    status: 'approved'  //  Optional, ['approved', 'draft']
+})
+//  Content Response structure is unique to each Asset. See Asset details below.
+
+Asset.updateContent(contentId, newContent)
+//  newContent is encoded as a Query String using the qs package.
+```
+
+#### Clone
+```js
+//  Traditionally, only a Folder target is needed for cloning an Asset
+Asset.clone({
+    folder: {
+        type: "Folder",  //  ["Folder", "Program"]
+        id: 0            //  Folder ID
+    }
+})
+```
+
+#### Delete
+```js
+//  Not all Assets can be deleted - some Assets must be "Unapproved" prior to deletion
+Asset.delete()
+//  Traditionally returns { id: <ID of deleted asset> }
+```
+
+#### Drafts
+```js
+//  Approve a Draft Node, if one exists
+Asset.approveDraft()
+//  Traditionally returns { id: <ID of deleted asset> }
+
+//  Discard a Draft Node, if one exists
+Asset.discardDraft()
+//  Traditionally returns { id: <ID of deleted asset> }
+
+//  Unapprove an Approved Node, if one exists
+Asset.unapprove()
+//  Traditionally returns { id: <ID of deleted asset> }
+```
 
 ---
 
 
-## All Asset method instructions:
-_Coming Soon_
+# All Asset method instructions:
+All Assets extend BaseAsset, so the above mentions of `data` property management and `create()` and `update()` methods remains the same unless otherwise noted.
+
+Additional Asset specific methods metnioned below.
+
+## Channel
+Marketo API does not allow for Channel Creation or Updating.
+
+Methods `create()` and `update()` are voided. This is primarily offered for the static `find()` method.
+
+## Email
+### Update
+Due to Marketo's interesting choice of splitting Email "Metadata" updates to two separate endpoints, 
+this method will need to check changedData for certain props and fire TWO Post requests.
+
+The first POST is for the Email Metadata:
++ 'name',
++ 'description',
++ 'operational',
++ 'published',
++ 'textOnly',
++ 'webView'
+
+The second POST is for the Email "Content" - but not email body content.
++ 'fromEmail',
++ 'fromName',
++ 'replyEmail',
++ 'subject'
+
+This returns a custom response object to compensate for sending to POST requests.
+```js
+//  ./lib/assets/Email.js - Line: 46
+//  Return the boolean response of both
+let returnData = {
+    status: (metaDataResponse.status === 200 && contentResponse.status === 200) ? 200 : 666,
+    success: (metaDataResponse.success && contentResponse.success) ? true : false,
+    errors: [
+        ...(metaDataResponse.errors ? metaDataResponse.errors : []), 
+        ...(contentResponse.errors ? contentResponse.errors : []), 
+    ],
+    warnings: [
+        ...(metaDataResponse.warnings ? metaDataResponse.warnings : []),
+        ...(contentResponse.warnings ? contentResponse.warnings : []),
+    ],
+
+    metaDataResponse: metaDataResponse,
+    contentResponse: contentResponse,
+}
+```
+
+### Send Sample Email
+Send a Sample Email by supplying a single Email Address, and optional LeadID for token/personalization processing.
+```js
+const sendEmailResponse = await myEmail.sendSample({
+    emailAddress: 'text-inbox@example.com',  //  Required, will return false if not provided
+    leadId: 1234,       //  Optional, allows you to sample email token/personalization processing by Lead Record
+    textOnly: false,    //  Optional
+})
+```
+
+
+### Get Variables
+Returns Array of Variable Data such as Strings, Colors, Booleans, Numbers, Lists.
+```js
+const variablesEmailResponse = await myEmail.getVariables({
+    status: 'approved' //  Optional, Status string, ['approved', 'draft']
+})
+//  Data will be an array of EmailVariableResponse objects
+variablesEmailResponse.data = [
+    //<EmailVariableResponse>,
+    //<EmailVariableResponse>,
+]
+/*
+EmailVariableResponse {
+    "name": "twoArticlesSpacer6",   //  Treat this like the ID
+    "value": "15",                  //  Value - String, 
+    "moduleScope": false
+}
+*/
+```
+
+### Get Content
+Returns Array of Content Sections such as Modules, Rich Text areas, Images, etc. Does not return Variables.
+```js
+const contentEmailResponse = await myEmail.getContent({
+    status: 'approved' //  Optional, Status string, ['approved', 'draft']
+})
+//  Data will be an array of EmailContentResponse objects
+contentEmailResponse.data = [
+    //<EmailContentResponse>,
+    //<EmailContentResponse>,
+]
+/*
+EmailContentResponse {
+    contentType (string): Type of content to set for the section. ,
+    htmlId (string): HTML id of the content section ,
+    index (integer, optional),
+    isLocked (boolean, optional),
+    parentHtmlId (string, optional),
+    value (object): Contents of the section
+}
+*/
+```
+
+### Get Full Content
+Returns the Full HTML Content of an Email Record for Version 2 Emails.
+A shim is in place to return the JSON string content from `getContent()` method for Version 1 emails.
+
+```js
+const fullContentEmailResponse = await myEmail.getFullContent({
+    status: 'approved', //  Optional, Status string, ['approved', 'draft']
+    leadId: '',         //  Optional, process HTML by lead record
+    type: 'HTML'        //  Optional, render as HTML or plain text
+})
+```
+
+### Approve Draft
+_See Drafts Mixin_
+
+### Unapprove Email
+_See Drafts Mixin_
+
+### Discard Draft
+_See Drafts Mixin_
+
+### Delete Email
+_See Delete Mixin_
+
+
+## Landing Page
+
+### Get Content
+Returns Array of Content Sections such as Modules, Rich Text areas, Images, etc. Does not return Variables.
+```js
+const contentLandingPageResponse = await myLandingPage.getContent({
+    status: 'approved' //  Optional, Status string, ['approved', 'draft']
+})
+//  Data will be an array of LandingPageContentResponse objects
+contentLandingPageResponse.data = [
+    //<LandingPageContentResponse>,
+    //<LandingPageContentResponse>,
+]
+/*
+LandingPageContentResponse {
+    content (object, optional): Content of the section. Expected values vary based on type. Image: An image URL. RichText: HTML Content. HTML: HTML Content. Form: A form id. Rectangle: Empty. Snippet: A snippet id. ,
+    type (string): Type of content section = ['Image', 'SocialButton', 'Form', 'DynamicContent', 'Rectangle', 'Snippet', 'RichText', 'HTML', 'Video', 'Poll', 'ReferralOffer', 'Sweepstakes']
+
+    followupType (string, optional): Follow-up behavior of a form. Only available for form-type content sections. Defaults to form defined behavior. = ['url', 'lp', 'formDefined'],
+    followupValue (string, optional): Where to follow-up on form submission. When followupType is lp, accepts the integer id of a landing page. For url, it accepts a url string. ,
+    formattingOptions (JsonNode, optional),
+    id (object): Id of the content section, may be a string or an int ,
+    index (integer, optional): Index of the content section. Index orients the elements from lowest to highest ,
+}
+*/
+```
+
+### Get Full Content
+Returns the Full HTML Content of an **Approved** Landing Page Record. This utilizes it's own Axios instance for a simple
+HTTP Get request to the Page URL. Returns `false` if the Landing Page is not approved.
+
+```js
+const fullContentEmailResponse = await myLandingPage.getFullContent()
+if(fullContentEmailResponse.success === true) {
+    fullContentEmailResponse.data === '<doctype>...'
+}
+else {
+    fullContentEmailResponse.data === {axiosError}
+}
+```
+
+### Approve Draft
+_See Drafts Mixin_
+
+### Unapprove Email
+_See Drafts Mixin_
+
+### Discard Draft
+_See Drafts Mixin_
+
+### Delete Email
+_See Delete Mixin_
+
+
 
 
 ---
