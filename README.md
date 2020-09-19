@@ -5,7 +5,7 @@ I am still working out the final method corrections and improved error handling,
 
 # MktoManager
 
-Dedicated Node logic for scripting automated changes and reports for Marketo instances. Emphasis on Asset (Email, Landing Page, Form, File, Folder) interactions, as well as Lead record and User record management. Written using ES6 Class definitions.
+Dedicated Node logic for scripting automated changes and reports for Marketo instances. Emphasis on Asset (Email, Landing Page, Form, File, Folder) interactions, as well as Lead record and User record management. Written using Async/Await Axios and ES6 Class definitions.
 
 #### Read more on Marketo REST API Here: [Marketo REST Api Docs](https://developers.marketo.com/rest-api/assets/)
 
@@ -57,8 +57,10 @@ The primary focus of this library is for Asset management. _Some Asset handlers 
 ```js
 //  Find Landing Page by ID
 mktoManager.assets.LandingPage.find({ id: 1234 })
+//  The `find` method will amend and change the Endpoint URI as needed depending on the search parameters you pass
 
-//  Find Landing Page by Parent Folder
+
+//  Find Landing Pages by Parent Folder
 mktoManager.assets.LandingPage.find({
     folder: {
         id: 123,            //  Folder ID
@@ -66,21 +68,24 @@ mktoManager.assets.LandingPage.find({
     },
 })
 
+
 //  Get multiple Programs
 mktoManager.assets.Program.find({
     offset: 0,              //  Offset value, like a paging token (sort of)
-    maxReturn: 200,         //  Defaults to 20 per the API Docs
+    maxReturn: 200,         //  Defaults to 20 per the API Docs, maximum 200
 })
 ```
 
 ## Library
 
-All Marketo API logic is contained within `lib/`. ~~The root will also contain interfaces for using the API Instances via CLI, Node Apps, etc.~~
+All Marketo API logic is contained within `lib/`.
 
-`lib/index.js` will read the `lib/assets/` directory and load all Asset Handlers into the module export. This include `BaseAsset`, which all other Asset Handlers are based on. Usage, User, and Lead Handler library information is also consumed here.
+`lib/index.js` will read the `lib/assets/` directory and load all Asset Handlers into the module export. This include `BaseAsset`, which all other Asset Handlers are based on. Usage, User, and ~Lead~ Handler library information is also consumed here.
 
-:warning: **All HTTP request methods are asynchronous and return Promises using Async/Await.**
+:warning: **All HTTP request methods are asynchronous and return Promises.**
 
+
+## Core Functions
 
 ### MktoRequest
 
@@ -120,7 +125,23 @@ mktoManager.assets.LandingPage.find({
 })
 ```
 
-A `summary` prop is also available that offers a quick summary of Axios Request and Response / Mkto API Response information - _great for quickly getting a summary of the response when developing._
+#### MktoResponse Properties
+| Property | Description |
+| --- | --- |
+| `_res` | Full Axios Response Object - minus the Axios `data` property. |
+| `_resultClass` | Stores the Handler instance if one was passed. |
+| `_data` | Raw Axops `data` property. |
+| --- | --- |
+| `status` | HTTP Status Code as returned by Axios. |
+| `success` | Handler specific logic for True/False success. Successful responses can still return Zero results. |
+| `result` | Raw Marketo 'result' data, usually an array of records. |
+| `warnings` | Array of Marketo Warnings - will return empty array if no warnings. |
+| `errors` | Array of Marketo Errors - will return empty array if no errors. |
+| `data` | Handler specific - either an Array of results Instantiated as Handler instances, or a single Instantiated Handler object. |
+
+
+
+A `summary` prop is also available that offers a quick summary of Axios Request and Response / Mkto API Response information - _great for quickly visualizing a summary of the response when developing._
 
 ```js
 mktoResponse.summary = {
@@ -153,8 +174,8 @@ mktoResponse = {
     ],
     //  `result` Array as Instantiated Handler instances
     data: [
-        <Instantiated Asset Result>,
-        <Instantiated Asset Result>,
+        <Instantiated Handler Result>,
+        <Instantiated Handler Result>,
         ....
     ],
 
@@ -194,7 +215,7 @@ mktoResponse = {
     }
 
     //  Reference to the Handler Instance
-    _asset: <Asset Class reference>,
+    _resultClass: <Asset Class reference>,
 
     //  Raw Axios Response
     _res: <Raw Axios Response>
@@ -202,19 +223,61 @@ mktoResponse = {
 */
 ```
 
+_NOTE: MktoResponse is extended for some of the "special" Marketo endpoints, like User Management. More details below in the User section._
+
 
 ---
 
 
-
 ### BaseAsset
 
-BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including instantiating our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
+BaseAsset is a factory function that creates a starting point for all Asset API "Handlers", including the instantiation of our _shared_ instance of `MktoRequest`. API Credentials are passed to the exported factory function. Each Asset Handler Instance shares this MktoRequest instance for REST API communication.
 
+#### Create Asset
+To create a net-new Asset, you can instantiate an instance of the Asset Handler, and then call the `create()` method.
+
+```js
+const myNewLandingPageData = {
+    name: "My First Landing Page",  //  Page Name, required
+    description: "",                //  Page Description, optional
+    template: 9,                    //  Template ID, required
+    folder: {                       //  Folder Object, required
+        type: "Folder",
+        id: 11
+    }
+}
+
+const myNewLandingPage = new mktoManager.assets.LandingPage(myNewLandingPageData)
+
+//  Send the Create request for our new Landing Page
+const createMktoResponse = await myNewLandingPage.create();
+
+if(createMktoResponse.success === true) {
+	//  The Response Object should now contain a newly instantiated Landing Page with the data from the API, including the new ID
+	//  Get the first (and only) result
+	const myLandingPage = createMktoResponse.getFirst()
+}
+```
+
+**You can now use this instantiated instance to set your Landing Page content!**
+
+
+#### Update Asset
 **Each extended Class defines an Active Record type approach to API record management.**
 
-A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. Record properties are retrieved and set via the corresponding methods:
+For example: A retrieved Landing Page record will store it's record data (only metadata per the API) in the `data` property. 
+Record properties are retrieved and set via the corresponding methods:
 
+| Method/Property | Description |
+| --- | --- |
+| `Asset.data` | Object with all Asset or User record data. |
+| `Asset._data` | Object with all Asset or User record data - we store this object to compare changes to the `data` property. |
+| `Asset.get(propertyName)` | Retrieves the given Property from the `Asset.data` object. |
+| `Asset.set(propertyName, newValue)` | Sets the given Property in the `Asset.data` object to `newValue`. |
+| `Asset.isChanged` | Computed boolean for depicting if any `data` property has been altered from it's original API data. |
+| `Asset.changedData` | Computed object that will always list the `data` properties that have been altered from what was last retrieved from the API (the `_data` property). |
+
+Here is an example of retrieving a record from the API, and updating one of it's properties:
 ```js
 //  Find Landing Page by ID
 const specialPageSearchResponse = await mktoManager.assets.LandingPage.find({
@@ -227,13 +290,13 @@ const mySpecialLandingPage = specialPageSearchResponse.getFirst()
 //  Check the Landing Page Name
 if (mySpecialLandingPage.get("name") === "My Special LandingPage") {
     //  Update the Landing Page Name
-    mySpecialLandingPage.set("name", "My Special Updated Landing Page")
+    mySpecialLandingPage.set("name", "My Super Special Landing Page")
 }
 ```
 
 At this point, the instance of `mySpecialLandingPage` has one of it's properties changed, but the Update call has not been made to the API.
 
-You can check if a record instance has pending updated property data with the getter properties:
+You can check if a record instance has pending updated property data with the computed properties:
 
 ```js
 //  Check if the record has pending changes (Not submitted to the API)
@@ -242,7 +305,8 @@ if (mySpecialLandingPage.isChanged) {
 
     //  Get the properties that have been changed
     console.log(mySpecialLandingPage.changedData)
-    //  Prints: {
+    //  Prints: 
+    //  {
     //    name: "My Special Updated Landing Page"
     //  }
 }
@@ -252,32 +316,264 @@ Now that we have updated the local instance of the API Record, we can make the u
 
 ```js
 const updateMktoResponse = await mySpecialLandingPage.update()
-```
 
-This returns a new instance of `MktoResponse` - you check for API success the same way.
+//  This returns a new instance of `MktoResponse` - you check for API success the same way.
 
-```js
 if (updateMktoResponse.success === true) {
     //  Successful update of the Landing Page name property!
-    //  The record self updates, so it no longer is "changed"
+    //  If the `update()` response was successful, 
+    //    the record self updates the `_data` property, 
+    //    so it no longer is "changed"
     //  mySpecialLandingPage.isChanged === false
 }
 ```
-
 The original record self updates its property tracking to aknowledge the `update()` success, meaning `isChanged` will now be `false`.
 
-#### Mixins
+### Mixins
 
 To standardize and consolidate certain record type logic, shared functionality (props and methods) are written in Mixin objects and assigned to Class definitions where required.
 
 _Examples: Clone, Delete, Content, and Variables methods and property handlers._
 
+#### Variables
+```js
+Asset.getVariables({
+    status: 'approved'  //  Optional, ['approved', 'draft']
+})
+
+Asset.updateVariables(variableId, newValue)
+```
+
+#### Content
+```js
+Asset.getContent({
+    status: 'approved'  //  Optional, ['approved', 'draft']
+})
+//  Content Response structure is unique to each Asset. See Asset details below.
+
+Asset.updateContent(contentId, newContent)
+//  newContent is encoded as a Query String using the qs package.
+```
+
+#### Clone
+```js
+//  Traditionally, only a Folder target is needed for cloning an Asset
+Asset.clone({
+    folder: {
+        type: "Folder",  //  ["Folder", "Program"]
+        id: 0            //  Folder ID
+    }
+})
+```
+
+#### Delete
+```js
+//  Not all Assets can be deleted - some Assets must be "Unapproved" prior to deletion
+Asset.delete()
+//  Traditionally returns { id: <ID of deleted asset> }
+```
+
+#### Drafts
+```js
+//  Approve a Draft Node, if one exists
+Asset.approveDraft()
+//  Traditionally returns { id: <ID of deleted asset> }
+
+//  Discard a Draft Node, if one exists
+Asset.discardDraft()
+//  Traditionally returns { id: <ID of deleted asset> }
+
+//  Unapprove an Approved Node, if one exists
+Asset.unapprove()
+//  Traditionally returns { id: <ID of deleted asset> }
+```
 
 ---
 
 
-## All Asset method instructions:
-_Coming Soon_
+# All Asset method instructions:
+All Assets extend BaseAsset, so the above mentions of `data` property management and `create()` and `update()` methods remains the same unless otherwise noted.
+
+Additional Asset specific methods metnioned below.
+
+## Channel
+Marketo API does not allow for Channel Creation or Updating.
+
+Methods `create()` and `update()` are voided. This is primarily offered for the static `find()` method.
+
+## Email
+### Update
+Due to Marketo's interesting choice of splitting Email "Metadata" updates to two separate endpoints, 
+this method will need to check changedData for certain props and fire TWO Post requests.
+
+The first POST is for the Email Metadata:
++ 'name',
++ 'description',
++ 'operational',
++ 'published',
++ 'textOnly',
++ 'webView'
+
+The second POST is for the Email "Content" - but not email body content.
++ 'fromEmail',
++ 'fromName',
++ 'replyEmail',
++ 'subject'
+
+This returns a custom response object to compensate for sending two POST requests.
+```js
+//  ./lib/assets/Email.js - Line: 46
+//  Return the boolean response of both
+let returnData = {
+    status: (metaDataResponse.status === 200 && contentResponse.status === 200) ? 200 : 666,
+    success: (metaDataResponse.success && contentResponse.success) ? true : false,
+    errors: [
+        ...(metaDataResponse.errors ? metaDataResponse.errors : []), 
+        ...(contentResponse.errors ? contentResponse.errors : []), 
+    ],
+    warnings: [
+        ...(metaDataResponse.warnings ? metaDataResponse.warnings : []),
+        ...(contentResponse.warnings ? contentResponse.warnings : []),
+    ],
+
+    metaDataResponse: metaDataResponse,
+    contentResponse: contentResponse,
+}
+```
+
+### Send Sample Email
+Send a Sample Email by supplying a single Email Address, and optional LeadID for token/personalization processing.
+```js
+const sendEmailResponse = await myEmail.sendSample({
+    emailAddress: 'text-inbox@example.com',  //  Required, will return false if not provided
+    leadId: 1234,       //  Optional, allows you to sample email token/personalization processing by Lead Record
+    textOnly: false,    //  Optional
+})
+```
+
+
+### Get Variables
+Returns Array of Variable Data such as Strings, Colors, Booleans, Numbers, Lists.
+```js
+const variablesEmailResponse = await myEmail.getVariables({
+    status: 'approved' //  Optional, Status string, ['approved', 'draft']
+})
+//  Data will be an array of EmailVariableResponse objects
+variablesEmailResponse.data = [
+    //<EmailVariableResponse>,
+    //<EmailVariableResponse>,
+]
+/*
+EmailVariableResponse {
+    "name": "twoArticlesSpacer6",   //  Treat this like the ID
+    "value": "15",                  //  Value - String, 
+    "moduleScope": false
+}
+*/
+```
+
+### Get Content
+Returns Array of Content Sections such as Modules, Rich Text areas, Images, etc. Does not return Variables.
+```js
+const contentEmailResponse = await myEmail.getContent({
+    status: 'approved' //  Optional, Status string, ['approved', 'draft']
+})
+//  Data will be an array of EmailContentResponse objects
+contentEmailResponse.data = [
+    //<EmailContentResponse>,
+    //<EmailContentResponse>,
+]
+/*
+EmailContentResponse {
+    contentType (string): Type of content to set for the section. ,
+    htmlId (string): HTML id of the content section ,
+    index (integer, optional),
+    isLocked (boolean, optional),
+    parentHtmlId (string, optional),
+    value (object): Contents of the section
+}
+*/
+```
+
+### Get Full Content
+Returns the Full HTML Content of an Email Record for Version 2 Emails.
+A shim is in place to return the JSON string content from `getContent()` method for Version 1 emails.
+
+```js
+const fullContentEmailResponse = await myEmail.getFullContent({
+    status: 'approved', //  Optional, Status string, ['approved', 'draft']
+    leadId: '',         //  Optional, process HTML by lead record
+    type: 'HTML'        //  Optional, render as HTML or plain text
+})
+```
+
+### Approve Draft
+_See Drafts Mixin_
+
+### Unapprove Email
+_See Drafts Mixin_
+
+### Discard Draft
+_See Drafts Mixin_
+
+### Delete Email
+_See Delete Mixin_
+
+
+## Landing Page
+
+### Get Content
+Returns Array of Content Sections such as Modules, Rich Text areas, Images, etc. Does not return Variables.
+```js
+const contentLandingPageResponse = await myLandingPage.getContent({
+    status: 'approved' //  Optional, Status string, ['approved', 'draft']
+})
+//  Data will be an array of LandingPageContentResponse objects
+contentLandingPageResponse.data = [
+    //<LandingPageContentResponse>,
+    //<LandingPageContentResponse>,
+]
+/*
+LandingPageContentResponse {
+    content (object, optional): Content of the section. Expected values vary based on type. Image: An image URL. RichText: HTML Content. HTML: HTML Content. Form: A form id. Rectangle: Empty. Snippet: A snippet id. ,
+    type (string): Type of content section = ['Image', 'SocialButton', 'Form', 'DynamicContent', 'Rectangle', 'Snippet', 'RichText', 'HTML', 'Video', 'Poll', 'ReferralOffer', 'Sweepstakes']
+
+    followupType (string, optional): Follow-up behavior of a form. Only available for form-type content sections. Defaults to form defined behavior. = ['url', 'lp', 'formDefined'],
+    followupValue (string, optional): Where to follow-up on form submission. When followupType is lp, accepts the integer id of a landing page. For url, it accepts a url string. ,
+    formattingOptions (JsonNode, optional),
+    id (object): Id of the content section, may be a string or an int ,
+    index (integer, optional): Index of the content section. Index orients the elements from lowest to highest ,
+}
+*/
+```
+
+### Get Full Content
+Returns the Full HTML Content of an **Approved** Landing Page Record. This utilizes it's own Axios instance for a simple
+HTTP Get request to the Page URL. Returns `false` if the Landing Page is not approved.
+
+```js
+const fullContentEmailResponse = await myLandingPage.getFullContent()
+if(fullContentEmailResponse.success === true) {
+    fullContentEmailResponse.data === '<doctype>...'
+}
+else {
+    fullContentEmailResponse.data === {axiosError}
+}
+```
+
+### Approve Draft
+_See Drafts Mixin_
+
+### Unapprove Email
+_See Drafts Mixin_
+
+### Discard Draft
+_See Drafts Mixin_
+
+### Delete Email
+_See Delete Mixin_
+
+
 
 
 ---
@@ -298,16 +594,15 @@ I have documented these inconsistencies over at my personal blog: `Coming Soon`
 
 :warning: `Work in progress`
 
-Due to Marketo's API return limit of 200, `BulkProcess` acts as an auto-paging processor for large scale content reviews/updates.
+Due to Marketo's API return limit of 200, `BulkProcess` acts as an event-emitting auto-paging processor for large scale content reviews/updates.
 
 ```js
-const { bulkProcess } = new MktoManagerInit(marketoRestCredentails)
+const { mktoManager, bulkProcess } = new MktoManagerInit(marketoRestCredentails)
 ```
 
 Pass `BulkProcess` a config param detailing the Asset Handler, search criteria, and asynchronous success & error callbacks to handle large scale reviews/updates.
 
 Example BulkProcess Config
-
 ```js
 {
     handler: null, //  <BaseAsset> Asset Specific instance
@@ -331,16 +626,98 @@ Example BulkProcess Config
         if (response.success) {
 
         }
+    }
+}
+```
+
+| Config Property | Description |
+| --- | --- |
+| `handler` | MktoManager Asset Class, such as `mktoManager.assets.LandingPage`. |
+| `searchParams` | Object passed to the `find()` method for narrowing the API Get results. |
+| `offset` | Starting offset value for the API request. |
+| `cycleMaxReturn` | Set an integer for the maxReturn value of records from Marketo. Determines the number of results that will be offered to your `successCallback()` method or `success` event. Defaults to 5, max 200. |
+| `cycleMaxIteration` | Set an integer for the maximum iterations of the `while` loop. Offered as a safety feature to help limit the total number of API calls per BulkProcess usage, and to mitigate run-away looping if there is a break in the logic. |
+| --- | --- |
+| `awaitSuccess` | Boolean if you want the `while` loop to await the finished Promise for your `successCallback()` |
+| `awaitError` | Boolean if you want the `while` loop to await the finished Promise for your `errorCallback()` |
+| `successCallback()` | Async method to be used on every successful retrieval from the API. **Optional, event listener can be used instead.** |
+| `errorCallback()` | Async method to be used on every failed retrieval from the API. **Optional, event listener can be used instead.** |
+
+:warning: NOTE: To process the returned API results once they are returned, you can either define an asynchronous `successCallback()` method within the BulkProcess config, OR attach a listener to the `success` BulkProcess event.
+
+_Personally, I prefer the event listener usage._
+
+**`successCallback()` Usage Example**
+```js
+//  Set BulkProcess config
+const myBulkProcessConfig = {
+    handler: mktoManager.assets.LandingPage,  //  Define which Asset type we are retrieving and processing
+    searchParams: {
+        status: 'approved'  // Will only retrieve and process Approved records
     },
-    exitCallback: async function ( /*MktoResponse*/ response) {
+
+    awaitSuccess: true, //  Will Await your successCallback before continuing
+    successCallback: async function ( /*MktoResponse*/ response) {
         //  Accepts the getAsset method response MktoResponse instance
 
         if (response.success) {
-
+            //  Save all results into my fake db
+            response.getAll().forEach(landingPage => {
+                db.insert("landingpages", landingPage.data)
+            })
         }
-    },
+    }
 }
+
+//  Instantiate the BulkProcess
+const processor = new this.bulkProcess(myBulkProcessConfig)
+
+//  Run the BulkProcess
+processor.run()
 ```
+
+**`success` Event Listener Usage Example**
+```js
+//  Set BulkProcess config
+const myBulkProcessConfig = {
+    handler: mktoManager.assets.LandingPage,  //  Define which Asset type we are retrieving and processing
+    searchParams: {
+        status: 'approved'  // Will only retrieve and process Approved records
+    }
+
+    //  No successCalback() definition required
+}
+
+//  Instantiate the BulkProcess
+const processor = new this.bulkProcess(myBulkProcessConfig)
+
+//  Add Event Listeners
+processor.on('success', (response) => {
+    if (response.success) {
+        //  Save all results into my fake db
+        response.getAll().forEach(landingPage => {
+            db.insert("landingpages", landingPage.data)
+        })
+    }
+})
+
+//  Run the BulkProcess
+processor.run()
+```
+
+
+
+### BulkProcess Events
+| Event | Description |
+| --- | --- |
+| `logger` | Fired every time a BulkProcess log is recorded. Receives `data` object from Tracer Logger. Easily log or print `data.output` to view the BulkProcess log. |
+| `request_http_error` | Fired when the Axios status !== 200. Recevies `MktoResponse` instance `response` object. |
+| `request_mkto_error` | Fired when the `MktoResponse.success` === false. Recevies `MktoResponse` instance `response` object |
+| `request_success` | Fired when the `MktoResponse.success` === true. Recevies `MktoResponse` instance `response` object. |
+| `success` | Fired when the `MktoResponse.success` === true AND we have some Mkto Results. Recevies `MktoResponse` instance `response` object. Also the event when we would fire the `successCallback` within the BulkProcess config, if one was passed. |
+| `finished` | Fired when the BulkProcess `while` loop is completed. Receives the entire BulkProcess instance. |
+
+_Under continuous improvement._
 
 
 ---
@@ -348,10 +725,11 @@ Example BulkProcess Config
 
 ### TODOs
 - [ ] Implement Lead classes
-- [ ] Implement User Management classes
+- [x] Implement User Management classes
 - [ ] Improve `BaseAsset` validation with Yup
 - [ ] Improve `MktoResponse` validation with Yup
 - [ ] Review `MktoRequest` retry method requirement
 - [ ] Implement Event Emitter on `MktoRequest` (for database hooks)
-- [ ] Implement Event Emitter on BulkProcess instead of synchronous callback system
+- [x] Implement Event Emitter on BulkProcess instead of synchronous callback system
+- [ ] Cleanup BulkProcess logging
 - [ ] Develop tests and stubs for API
