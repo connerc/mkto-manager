@@ -420,7 +420,7 @@ The second POST is for the Email "Content" - but not email body content.
 + 'replyEmail',
 + 'subject'
 
-This returns a custom response object to compensate for sending to POST requests.
+This returns a custom response object to compensate for sending two POST requests.
 ```js
 //  ./lib/assets/Email.js - Line: 46
 //  Return the boolean response of both
@@ -594,16 +594,15 @@ I have documented these inconsistencies over at my personal blog: `Coming Soon`
 
 :warning: `Work in progress`
 
-Due to Marketo's API return limit of 200, `BulkProcess` acts as an auto-paging processor for large scale content reviews/updates.
+Due to Marketo's API return limit of 200, `BulkProcess` acts as an event-emitting auto-paging processor for large scale content reviews/updates.
 
 ```js
-const { bulkProcess } = new MktoManagerInit(marketoRestCredentails)
+const { mktoManager, bulkProcess } = new MktoManagerInit(marketoRestCredentails)
 ```
 
 Pass `BulkProcess` a config param detailing the Asset Handler, search criteria, and asynchronous success & error callbacks to handle large scale reviews/updates.
 
 Example BulkProcess Config
-
 ```js
 {
     handler: null, //  <BaseAsset> Asset Specific instance
@@ -627,16 +626,98 @@ Example BulkProcess Config
         if (response.success) {
 
         }
+    }
+}
+```
+
+| Config Property | Description |
+| --- | --- |
+| `handler` | MktoManager Asset Class, such as `mktoManager.assets.LandingPage`. |
+| `searchParams` | Object passed to the `find()` method for narrowing the API Get results. |
+| `offset` | Starting offset value for the API request. |
+| `cycleMaxReturn` | Set an integer for the maxReturn value of records from Marketo. Determines the number of results that will be offered to your `successCallback()` method or `success` event. Defaults to 5, max 200. |
+| `cycleMaxIteration` | Set an integer for the maximum iterations of the `while` loop. Offered as a safety feature to help limit the total number of API calls per BulkProcess usage, and to mitigate run-away looping if there is a break in the logic. |
+| --- | --- |
+| `awaitSuccess` | Boolean if you want the `while` loop to await the finished Promise for your `successCallback()` |
+| `awaitError` | Boolean if you want the `while` loop to await the finished Promise for your `errorCallback()` |
+| `successCallback()` | Async method to be used on every successful retrieval from the API. **Optional, event listener can be used instead.** |
+| `errorCallback()` | Async method to be used on every failed retrieval from the API. **Optional, event listener can be used instead.** |
+
+:warning: NOTE: To process the returned API results once they are returned, you can either define an asynchronous `successCallback()` method within the BulkProcess config, OR attach a listener to the `success` BulkProcess event.
+
+_Personally, I prefer the event listener usage._
+
+**`successCallback()` Usage Example**
+```js
+//  Set BulkProcess config
+const myBulkProcessConfig = {
+    handler: mktoManager.assets.LandingPage,  //  Define which Asset type we are retrieving and processing
+    searchParams: {
+        status: 'approved'  // Will only retrieve and process Approved records
     },
-    exitCallback: async function ( /*MktoResponse*/ response) {
+
+    awaitSuccess: true, //  Will Await your successCallback before continuing
+    successCallback: async function ( /*MktoResponse*/ response) {
         //  Accepts the getAsset method response MktoResponse instance
 
         if (response.success) {
-
+            //  Save all results into my fake db
+            response.getAll().forEach(landingPage => {
+                db.insert("landingpages", landingPage.data)
+            })
         }
-    },
+    }
 }
+
+//  Instantiate the BulkProcess
+const processor = new this.bulkProcess(myBulkProcessConfig)
+
+//  Run the BulkProcess
+processor.run()
 ```
+
+**`success` Event Listener Usage Example**
+```js
+//  Set BulkProcess config
+const myBulkProcessConfig = {
+    handler: mktoManager.assets.LandingPage,  //  Define which Asset type we are retrieving and processing
+    searchParams: {
+        status: 'approved'  // Will only retrieve and process Approved records
+    }
+
+    //  No successCalback() definition required
+}
+
+//  Instantiate the BulkProcess
+const processor = new this.bulkProcess(myBulkProcessConfig)
+
+//  Add Event Listeners
+processor.on('success', (response) => {
+    if (response.success) {
+        //  Save all results into my fake db
+        response.getAll().forEach(landingPage => {
+            db.insert("landingpages", landingPage.data)
+        })
+    }
+})
+
+//  Run the BulkProcess
+processor.run()
+```
+
+
+
+### BulkProcess Events
+| Event | Description |
+| --- | --- |
+| `logger` | Fired every time a BulkProcess log is recorded. Receives `data` object from Tracer Logger. Easily log or print `data.output` to view the BulkProcess log. |
+| `request_http_error` | Fired when the Axios status !== 200. Recevies `MktoResponse` instance `response` object. |
+| `request_mkto_error` | Fired when the `MktoResponse.success` === false. Recevies `MktoResponse` instance `response` object |
+| `request_success` | Fired when the `MktoResponse.success` === true. Recevies `MktoResponse` instance `response` object. |
+| `success` | Fired when the `MktoResponse.success` === true AND we have some Mkto Results. Recevies `MktoResponse` instance `response` object. Also the event when we would fire the `successCallback` within the BulkProcess config, if one was passed. |
+| `finished` | Fired when the BulkProcess `while` loop is completed. Receives the entire BulkProcess instance. |
+
+_Under continuous improvement._
 
 
 ---
@@ -644,10 +725,11 @@ Example BulkProcess Config
 
 ### TODOs
 - [ ] Implement Lead classes
-- [ ] Implement User Management classes
+- [x] Implement User Management classes
 - [ ] Improve `BaseAsset` validation with Yup
 - [ ] Improve `MktoResponse` validation with Yup
 - [ ] Review `MktoRequest` retry method requirement
 - [ ] Implement Event Emitter on `MktoRequest` (for database hooks)
-- [ ] Implement Event Emitter on BulkProcess instead of synchronous callback system
+- [x] Implement Event Emitter on BulkProcess instead of synchronous callback system
+- [ ] Cleanup BulkProcess logging
 - [ ] Develop tests and stubs for API
