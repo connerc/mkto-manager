@@ -51,6 +51,7 @@ The primary focus of this library is for Asset management. _Some Asset handlers 
 -   `mktoManager.assets.Segment`
 -   `mktoManager.assets.SmartCampaign`
 -   `mktoManager.assets.SmartList`
+-   `mktoManager.assets.Tag`
 
 #### Static methods are offered for querying the API for an Asset record
 
