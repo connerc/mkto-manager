@@ -1,7 +1,7 @@
 {
     "name": "mkto-manager",
-    "version": "0.1.7",
-    "description": "Node based client for interacting with Marketo REST API",
+    "version": "0.1.8",
+    "description": "Node client for interacting with Marketo REST API",
     "main": "index.js",
     "publishConfig": {
         "registry": "https://registry.npmjs.org/"
@@ -31,6 +31,7 @@
         "deep-equal": "^2.0.3",
         "form-data": "^2.5.1",
         "fs-extra": "^8.1.0",
+        "qs": "^6.9.6",
         "request": "^2.88.0",
         "tracer": "^1.0.2",
         "yup": "^0.28.1"
