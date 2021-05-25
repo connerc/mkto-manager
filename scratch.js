@@ -1,4 +1,4 @@
-const sandboxCreds = require("./config.sand");
+const sandboxCreds = require("../mkto-actions/app/mktoManager/config.sand");
 // console.log("sandboxCreds", sandboxCreds);
 
 const mktoManager = require("./lib")(sandboxCreds);
@@ -7,8 +7,8 @@ const mktoManager = require("./lib")(sandboxCreds);
 //mktoManager.User.roles().then(resp => console.log(resp.data));
 
 const EmailAsset = mktoManager.assets.Email;
-EmailAsset.find({ maxReturn: 200 }).then(resp => console.log("resp", resp.getFirst().data));
+//EmailAsset.find({ maxReturn: 200 }).then(resp => console.log("resp", resp.getFirst().data));
 
 // const assets = mktoManager.assets;
-// console.log("assets", assets);
+console.log("mktoManager", mktoManager);
 //*/
