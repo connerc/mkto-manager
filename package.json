@@ -1,7 +1,7 @@
 {
     "name": "mkto-manager",
-    "version": "0.1.7",
-    "description": "Node based client for interacting with Marketo REST API",
+    "version": "0.1.8",
+    "description": "Node client for interacting with Marketo REST API",
     "main": "index.js",
     "publishConfig": {
         "registry": "https://registry.npmjs.org/"
