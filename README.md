@@ -55,9 +55,10 @@ The primary focus of this library is for Asset management. _Some Asset handlers 
 -   `mktoManager.assets.Tag`
 
 ### Querying the API for an Asset record using `.find()`
-`.find()` is an async static method used for retrieving records from the Marketo API.
-The `.find()` method will amend and change the Endpoint URI as needed depending on the search parameters you pass.
+Each Asset Handler class contains a static async `find()` method for retrieving records from the Marketo API.
+The `.find()` method will define and amend the Endpoint URI as needed depending on the Asset Handler class and the search parameters you pass to it.
 
+**Examples:**
 ```js
 //  Find Landing Page by ID
 mktoManager.assets.LandingPage.find({ id: 1234 })
@@ -81,8 +82,8 @@ mktoManager.assets.Program.find({
 ```
 
 ### Query Responses
-All `.find()` method responses will return an instance of MktoResponse which acts as a wrapper around the real Marketo Response.
-the MktoResponse will have a single property for determining the success of the request, as well as helper methods for accessing the results.
+All `.find()` method responses will return an instance of `MktoResponse`. `MktoResponse` acts as a wrapper around the real Marketo Response.
+The `MktoResponse` will have a single property for determining the success of the request, as well as helper methods for accessing the results.
 
 ```js
 mktoManager.assets.LandingPage
@@ -131,6 +132,84 @@ mktoManager.assets.LandingPage.on("find_response", mktoResponse => {
 ```js
 mktoManager.assets.LandingPage.on("find_error", AxiosError => {
     //  Returns the AxiosError object from Axios
+})
+```
+
+### Streaming Asset Records using `stream()`
+Due to Marketo's constraint of a maximum of 200 Asset records returned per `find()` request, we also have included a static method for creating an API Record stream to easily iterate over all API records that are qualified by your `find()` search parameters passed the 200 return limit.
+
+> NOTE: The stream method offered on all Asset Handler classes is intended to replace the original BulkProcess helper class, which will be deprecated.
+
+`stream()` is used similar to `find()`, but must be synchronously composed, and then asynchronously run.
+
+`stream()` will return a single array of all retrieved records instantiated as instances of the Asset Handler class.
+
+```js
+//  Retrieve ALL Landing Pages that fit our search criteria without the maxReturn bounds
+//  Construct our stream handler that we can attach event listeners to and execute on-demand
+const streamHandler = mktoManager.assets.LandingPage.stream({ 
+    //  Search Conditions
+    status: "approved",
+    
+    //  Return modifiers
+    offset: 0,  //  Defaults to 0 to start, and is auto-incremented within the stream method()
+    //  Use a custom offset if you prefer to skip the initial records
+
+    maxReturn: 200,  //  Defaults to the maximum 200. 
+    //  Reduce this maxReturn to reduce the number of results returned in the emitted "request_success" event
+    //  This can be used to manage the size of your looping logic per "request_success" event
+})
+
+//  Stream will bubble the internal `find()` requests "find_request" event carrying the request config object
+streamHandler.on("find_request", requestConfig => {
+    // requestConfig = {
+    //     url: <URI String>,
+    //     method: 'get',
+    //     params: <Search Params Object>,
+    // }
+})
+
+//  Each iterative `find()` request will emit a "request_success" event that carries the mktoResponse from `find()`
+streamHandler.on("success", mktoResponse => {
+    //  We can safely assume this event was triggered when this 
+    //  `mktoResponse` instance was successful - `mktoResponse.success === true`
+
+    //  Iterate over the results and do whatever you need
+    mktoResponse.getAll().forEach(landingPageAsset => {
+        //  Your code here...
+    })
+});
+
+//  We also have emitted events for issues with the HTTP Request
+streamHandler.on("request_http_error", mktoResponse => {
+    //  mktoResponse.status !== 200
+});
+
+//  And issues with the Marketo Request
+streamHandler.on("request_mkto_error", mktoResponse => {
+    //  mktoResponse.success === false
+});
+
+//  Finally, we have an emitted event when the stream is finished
+streamHandler.on("finished", streamHandlerInstance => {
+    //  Returns the copy of the streamHandler.
+    //  All retrieved data can be accessed via streamHandlerInstance.data
+
+    // streamHandlerInstance.data = [
+    //     <LandingPage>,
+    //     <LandingPage>,
+    //     <LandingPage>,
+    //     <LandingPage>,
+    //     <LandingPage>,
+    //     <LandingPage>,
+    //     <LandingPage>
+    // ]
+});
+
+//  After attaching all of your event listeners, you can execute the async stream
+streamHandler.run().then(streamHandlerData => {
+    //  The async `run()` method will also return the streamHandlerInstance.data property
+    //  so you can use it from the resulting `finished` event or await the results here.
 })
 ```
 
@@ -228,7 +307,7 @@ mktoManager.assets.LandingPage.find({
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `_res`         | Full Axios Response Object - minus the Axios `data` property.                                                             |
 | `_resultClass` | Stores the Handler instance if one was passed.                                                                            |
-| `_data`        | Raw Axops `data` property.                                                                                                |
+| `_data`        | Raw Axios `data` property.                                                                                                |
 | ---            | ---                                                                                                                       |
 | `status`       | HTTP Status Code as returned by Axios.                                                                                    |
 | `success`      | Handler specific logic for True/False success. Successful responses can still return Zero results.                        |
