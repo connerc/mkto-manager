@@ -22,7 +22,7 @@ $ npm i --save mkto-manager
 
 ```js
 //  Retrieve the mkto-manager factory
-const MktoManagerInit = require("mkto-manager");
+const makeManager = require("mkto-manager")
 
 //  Define your REST API Credentials
 const marketoRestCredentials = {
@@ -32,7 +32,7 @@ const marketoRestCredentials = {
 };
 
 //  Mkto Config
-const { mktoManager } = new MktoManagerInit(marketoRestCredentials);
+const mktoManager = new makeManager(marketoRestCredentails)
 ```
 
 ## Assets
@@ -54,12 +54,16 @@ The primary focus of this library is for Asset management. _Some Asset handlers 
 -   `mktoManager.assets.SmartList`
 -   `mktoManager.assets.Tag`
 
-#### Async Static methods are offered for querying the API for an Asset record
+### Querying the API for an Asset record using `.find()`
+`.find()` is an async static method used for retrieving records from the Marketo API.
+The `.find()` method will amend and change the Endpoint URI as needed depending on the search parameters you pass.
 
 ```js
 //  Find Landing Page by ID
-mktoManager.assets.LandingPage.find({ id: 1234 });
-//  The `find` method will amend and change the Endpoint URI as needed depending on the search parameters you pass
+mktoManager.assets.LandingPage.find({ id: 1234 })
+
+//  Find Landing Page by Name
+mktoManager.assets.LandingPage.find({ name: "My Cool Landing Page" })
 
 //  Find Landing Pages by Parent Folder
 mktoManager.assets.LandingPage.find({
@@ -75,6 +79,90 @@ mktoManager.assets.Program.find({
     maxReturn: 200, //  Defaults to 20 per the API Docs, maximum 200
 });
 ```
+
+### Query Responses
+All `.find()` method responses will return an instance of MktoResponse which acts as a wrapper around the real Marketo Response.
+the MktoResponse will have a single property for determining the success of the request, as well as helper methods for accessing the results.
+
+```js
+mktoManager.assets.LandingPage
+    //  Retrieve Landing Page by ID
+    .find({ id: 1234 })
+    //  Utilize the Marketo Response
+    .then(function (mktoResponse) {
+        //  Check if the API Response was successful
+        if (mktoResponse.success === true) {
+            //  Get the first result - still needed if you only expect 1 result
+            const firstLandingPageResult = mktoResponse.getFirst()
+            //  firstLandingPageResult is an instantiated instance of the LandingPage Handler
+
+            //  Get all results as an array of instantiated instances of the Handler
+            const allLandingPageResults = mktoResponse.getAll()
+        } else {
+            //  Capture Mkto API Warnings or Errors
+            const mktoWarnings = mktoResponse.warnings
+            const mktoErrors = mktoResponse.errors
+        }
+    })
+```
+
+#### Find Request Events
+You can attach listeners for various steps within the `.find()` request.
+
+**Pre-Request** - Emitted just before the HTTP Request
+```js
+mktoManager.assets.LandingPage.on("find_request", requestConfig => {
+    // requestConfig = {
+    //     url: <URI String>,
+    //     method: 'get',
+    //     params: <Search Params Object>,
+    // }
+})
+```
+
+**Find Response** - Emitted upon successful response
+```js
+mktoManager.assets.LandingPage.on("find_response", mktoResponse => {
+    //  Returns the instance of mktoResponse that is also returned by the method.
+})
+```
+
+**Find Error** - Emitted upon a failed HTTP Response
+```js
+mktoManager.assets.LandingPage.on("find_error", AxiosError => {
+    //  Returns the AxiosError object from Axios
+})
+```
+
+
+### Asset Management
+Each Asset instance shares many properties and methods.
+
+#### Data Management
+Access the Record ID value using the computed `.id` property. This is mapped to retrieve the ID from the property where it is stored.
+
+Manage the Asset data using the `.set()` and `.get()` methods.
+```js
+const landingPageName = myLandingPageAsset.get("name");
+//  landingPageName = "My Cool Landing Page"
+
+//  Set a new Landing Page Name
+myLandingPageAsset.set("name", "My Cooler Landing Page");
+```
+_This updates the local data property, but has not triggered the update to the API._
+
+#### Check if data has been changed
+By using a data caching system, we preserve a non-mutated copy of the data. 
+
+`.isChanged` is a computed boolean that will define if the data has been changed.
+This allows us to quickly check if the data has been mutated, and if we need to send the updated data to the Marketo API.
+
+You can also review what data has been mutated by using the `changedData` computed property. 
+This will return an object of just the properties that have been altered.
+
+
+
+---
 
 ## Library
 
