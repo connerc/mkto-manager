@@ -4,3 +4,4 @@
 /node_modules
 config.prod.js
 config.sand.js
+scratch.js
