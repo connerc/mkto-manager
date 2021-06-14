@@ -1,6 +1,6 @@
 {
     "name": "mkto-manager",
-    "version": "1.0.0",
+    "version": "1.0.0-beta.0",
     "description": "Node client for interacting with Marketo REST API",
     "main": "lib/index.js",
     "publishConfig": {
