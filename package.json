@@ -7,7 +7,7 @@
         "registry": "https://registry.npmjs.org/"
     },
     "scripts": {
-        "test": ""
+        "test": "ava test/ava/index.js"
     },
     "repository": {
         "type": "git",
@@ -39,6 +39,7 @@
         "yup": "^0.28.1"
     },
     "devDependencies": {
+        "ava": "^3.15.0",
         "chai": "^4.2.0",
         "express": "^4.17.1",
         "mocha": "^7.0.1",

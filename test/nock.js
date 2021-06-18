@@ -1,6 +1,7 @@
 const nock = require("nock");
 const targetDomain = "http://localhost:8081";
 const mktoAccessToken = "mkto-test-access-token"
+
 const scope = nock(targetDomain)
     .persist()
 	.get("/identity/oauth/token")
@@ -12,7 +13,7 @@ const scope = nock(targetDomain)
 	.reply(200, {
 		access_token: mktoAccessToken,
 		scope: "string",
-		expires_in: (new Date).getTime(),
+		expires_in: (3599 * 1000),
 		token_type: "bearer",
 	});
 
