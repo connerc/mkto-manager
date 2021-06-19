@@ -280,3 +280,68 @@ test("Discard LP Draft", async t => {
 	t.is(newLp._data.status, "approved");
 });
 
+
+
+//  Verify Delete call
+test("Delete LP", async t => {
+    const newLp = new LandingPageManager({
+        ...mockLandingPageRecord,
+        status: "draft"
+    });
+
+	nockScope
+		.post(`/rest/asset/v1/landingPage/${newLp.id}/delete.json`, payload => {
+            return true
+        })
+		.query(true)
+		.reply(200, {
+			success: true,
+			result: [{
+                id: newLp.id
+            }],
+		});
+
+    const updateLpResponse = await newLp.delete()
+
+	t.true(updateLpResponse.success);
+});
+
+
+//  Verify Clone
+test("Clone LP", async t => {
+    const newLp = new LandingPageManager({
+        ...mockLandingPageRecord,
+        status: "approved"
+    });
+
+    const nextLpId = 1440
+    const newFolder = {
+        type: "folder",
+        value: 3535
+    }
+
+	nockScope
+		.post(`/rest/asset/v1/landingPage/${newLp.id}/clone.json`, payload => {
+            return payload.name && payload.folder
+        })
+		.query(true)
+		.reply(200, {
+			success: true,
+			result: [{
+                ...newLp.data,
+                folder: newFolder,
+                name: newLp.get("name") + " 2",
+                id: nextLpId
+            }],
+		});
+
+    const cloneLpResponse = await newLp.clone({
+        name: newLp.get("name") + " 2",
+        folder: newFolder
+    })
+
+	t.true(cloneLpResponse.success);
+	t.is(cloneLpResponse.getFirst().id, nextLpId);
+	t.not(cloneLpResponse.getFirst().id, newLp.id);
+	t.deepEqual(cloneLpResponse.getFirst().get("folder"), newFolder);
+});
