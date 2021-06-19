@@ -345,3 +345,30 @@ test("Clone LP", async t => {
 	t.not(cloneLpResponse.getFirst().id, newLp.id);
 	t.deepEqual(cloneLpResponse.getFirst().get("folder"), newFolder);
 });
+
+
+//  LP Variables
+test("Get LP Variables", async t => {
+    const newLp = new LandingPageManager({
+        ...mockLandingPageRecord,
+        status: "approved"
+    });
+
+	nockScope
+		.get(`/rest/asset/v1/landingPage/${newLp.id}/variables.json`)
+		.query(true)
+		.reply(200, {
+			success: true,
+			result: [
+                {
+                    id: 123,
+                    type: "type",
+                    value: {}
+                }
+            ],
+		});
+
+    const variablesLpResponse = await newLp.getVariables()
+
+	t.true(variablesLpResponse.success);
+});
