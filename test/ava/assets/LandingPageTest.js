@@ -1,30 +1,42 @@
 const test = require("ava");
-const {requestScope}  = require("../../nock");
+const { requestScope } = require("../../nock");
 
 const testCredentials = require("../../../config.test");
 const mktoManager = require("../../../lib")(testCredentials);
 
 const mockLandingPageRecord = {
-	id: 27,
-	name: "My Cool Landing Page",
-	description: "this is a test",
-	createdAt: "2016-05-20T18:41:43Z+0000",
-	updatedAt: "2016-05-20T18:41:43Z+0000",
-	folder: {
-		type: "Folder",
-		value: 11,
-		folderName: "Landing Pages",
+	record: {
+		id: 27,
+		name: "My Cool Landing Page",
+		description: "this is a test",
+		createdAt: "2016-05-20T18:41:43Z+0000",
+		updatedAt: "2016-05-20T18:41:43Z+0000",
+		folder: {
+			type: "Folder",
+			value: 11,
+			folderName: "Landing Pages",
+		},
+		workspace: "Default",
+		status: "draft",
+		template: 1,
+		title: "test create",
+		keywords: "awesome",
+		robots: "index, nofollow",
+		formPrefill: false,
+		mobileEnabled: false,
+		URL: "https://app-devlocal1.marketo.com/lp/622-LME-718/createLandingPage.html",
+		computedUrl: "https://app-devlocal1.marketo.com/#LP27B2",
 	},
-	workspace: "Default",
-	status: "draft",
-	template: 1,
-	title: "test create",
-	keywords: "awesome",
-	robots: "index, nofollow",
-	formPrefill: false,
-	mobileEnabled: false,
-	URL: "https://app-devlocal1.marketo.com/lp/622-LME-718/createLandingPage.html",
-	computedUrl: "https://app-devlocal1.marketo.com/#LP27B2",
+	get create() {
+		return {
+			name: this.record.name,
+			folder: this.record.folder,
+			description: this.record.description,
+			template: this.record.template,
+			title: this.record.title,
+			keywords: this.record.keywords,
+		};
+	},
 };
 
 const LandingPageManager = mktoManager.assets.LandingPage;
@@ -33,37 +45,37 @@ const LandingPageManager = mktoManager.assets.LandingPage;
 //  Get by ID
 test("Get Landing Page by ID", async t => {
 	requestScope
-		.get("/rest/asset/v1/landingPage/123.json")
+		.get(`/rest/asset/v1/landingPage/${mockLandingPageRecord.record.id}.json`)
 		.query(true)
 		.reply(200, {
 			success: true,
-			result: [mockLandingPageRecord],
+			result: [mockLandingPageRecord.record],
 		});
 
 	const findLandingPageResponse = await LandingPageManager.find({
-		id: 123,
+		id: mockLandingPageRecord.record.id,
 	});
 
 	t.true(findLandingPageResponse.success);
-	t.is(findLandingPageResponse.getFirst().id, mockLandingPageRecord.id);
+	t.is(findLandingPageResponse.getFirst().id, mockLandingPageRecord.record.id);
 });
 
 //  Get by name
 test("Get Landing Page by name", async t => {
 	requestScope
 		.get("/rest/asset/v1/landingPage/byName.json")
-		.query({ name: "My Cool Landing Page" })
+		.query({ name: mockLandingPageRecord.record.name })
 		.reply(200, {
 			success: true,
-			result: [mockLandingPageRecord],
+			result: [mockLandingPageRecord.record],
 		});
 
 	const findLandingPageResponse = await LandingPageManager.find({
-		name: "My Cool Landing Page",
+		name: mockLandingPageRecord.record.name,
 	});
 
 	t.true(findLandingPageResponse.success);
-	t.is(findLandingPageResponse.getFirst().get("name"), "My Cool Landing Page");
+	t.is(findLandingPageResponse.getFirst().get("name"), mockLandingPageRecord.record.name);
 });
 
 //  Get all
@@ -76,7 +88,7 @@ test("Get Landing Pages with random max return", async t => {
 		})
 		.reply(200, {
 			success: true,
-			result: Array(randomMaxReturn).fill(mockLandingPageRecord),
+			result: Array(randomMaxReturn).fill(mockLandingPageRecord.record),
 		});
 
 	const findLandingPageResponse = await LandingPageManager.find({
@@ -93,14 +105,14 @@ test("Stream all Landing Pages", async t => {
 	const finalRequestMax = 125;
 	requestScope
 		.get("/rest/asset/v1/landingPages.json")
-        //  First 4 requests - will return 200 mocked results
+		//  First 4 requests - will return 200 mocked results
 		.times(4)
 		.query(requestParams => {
 			return requestParams.maxReturn == 200 && requestParams.offset <= 400;
 		})
 		.reply(200, {
 			success: true,
-			result: Array(200).fill(mockLandingPageRecord),
+			result: Array(200).fill(mockLandingPageRecord.record),
 		})
 		//  Final request
 		.get("/rest/asset/v1/landingPages.json")
@@ -109,7 +121,7 @@ test("Stream all Landing Pages", async t => {
 		})
 		.reply(200, {
 			success: true,
-			result: Array(finalRequestMax).fill(mockLandingPageRecord),
+			result: Array(finalRequestMax).fill(mockLandingPageRecord.record),
 		});
 
 	const streamHandler = LandingPageManager.stream({
@@ -123,7 +135,7 @@ test("Stream all Landing Pages", async t => {
 	// });
 	streamHandler.on("success", mktoResponse => {
 		eventCaptureFlag = true;
-        //console.log("count", mktoResponse.getAll().length)
+		//console.log("count", mktoResponse.getAll().length)
 		streamResultsCapture.push(...mktoResponse.getAll());
 	});
 	const streamResults = await streamHandler.run();
@@ -146,27 +158,32 @@ test("Create new Landing Page", async t => {
 			success: true,
 			result: [
 				{
-					...mockLandingPageRecord,
+					...mockLandingPageRecord.record,
 					id: randomNewRecordId,
 					status: "draft",
 				},
 			],
 		});
 
-	const newLp = new LandingPageManager(mockLandingPageRecord);
-    newLp.on("create_request", requestConfig => console.log(requestConfig))
+	const newLp = new LandingPageManager(mockLandingPageRecord.create);
+	newLp.on("create_request", requestConfig => console.log(requestConfig));
 	const createLpResponse = await newLp.create();
 
 	t.true(createLpResponse.success);
 	t.is(createLpResponse.getFirst().id, randomNewRecordId);
 	t.is(createLpResponse.getFirst().get("status"), "draft");
+	t.deepEqual(createLpResponse.getFirst().data, {
+		...mockLandingPageRecord.record,
+		id: randomNewRecordId,
+		status: "draft",
+	});
 });
 
 //  Update Landing Page
 test("Update Landing Page", async t => {
 	const newDescText = "I am an updated description!";
 
-	const newLp = new LandingPageManager(mockLandingPageRecord);
+	const newLp = new LandingPageManager(mockLandingPageRecord.record);
 	newLp.set("description", newDescText);
 	t.true(newLp.isChanged);
 
@@ -195,7 +212,7 @@ test("Update Landing Page", async t => {
 test("Test API Log System", async t => {
 	const apiLogMessage = new Date().toISOString() + " auto updated asset sources";
 
-	const newLp = new LandingPageManager(mockLandingPageRecord);
+	const newLp = new LandingPageManager(mockLandingPageRecord.record);
 	newLp.addLog(apiLogMessage);
 	t.true(newLp.isChanged);
 
@@ -222,7 +239,7 @@ test("Test API Log System", async t => {
 //  Verify approveDraft call
 test("Approve LP Draft", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "draft",
 	});
 
@@ -249,7 +266,7 @@ test("Approve LP Draft", async t => {
 //  Verify unapprove call
 test("Unapprove LP", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "approved",
 	});
 
@@ -276,7 +293,7 @@ test("Unapprove LP", async t => {
 //  Verify unapprove call
 test("Discard LP Draft", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "draft",
 	});
 
@@ -303,7 +320,7 @@ test("Discard LP Draft", async t => {
 //  Verify Delete call
 test("Delete LP", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "draft",
 	});
 
@@ -329,7 +346,7 @@ test("Delete LP", async t => {
 //  Verify Clone
 test("Clone LP", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "approved",
 	});
 
@@ -370,7 +387,7 @@ test("Clone LP", async t => {
 //  LP Variables
 test("Get LP Variables", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "approved",
 	});
 
@@ -408,7 +425,7 @@ test("Get LP Variables", async t => {
 //  LP Variables
 test("Update LP Variable", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "approved",
 	});
 
@@ -444,17 +461,12 @@ test("Update LP Variable", async t => {
 	t.is(updateVariableLpResponse.getFirst().value, "newValue");
 });
 
-
-
-
 //  LP Get Full Content
 test("Get LP HTML Content", async t => {
 	const newLp = new LandingPageManager({
-		...mockLandingPageRecord,
+		...mockLandingPageRecord.record,
 		status: "approved",
 	});
-
-
 
 	requestScope
 		.get(`/rest/asset/v1/landingPage/${newLp.id}/fullContent.json`)
