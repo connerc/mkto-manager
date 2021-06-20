@@ -1,5 +1,5 @@
 const test = require("ava");
-const nockScope = require("../nock");
+//const {requestScope} = require("../nock");
 
 const testCredentials = require("../../config.test");
 const mktoManager = require("../../lib")(testCredentials);

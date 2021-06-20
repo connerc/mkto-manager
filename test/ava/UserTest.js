@@ -1,5 +1,5 @@
 const test = require("ava");
-const nockScope = require("../nock");
+const {requestScope} = require("../nock");
 
 const testCredentials = require("../../config.test");
 const mktoManager = require("../../lib")(testCredentials);
@@ -8,7 +8,7 @@ const mktoManager = require("../../lib")(testCredentials);
 test("Retrieve User by ID", async t => {
 	const userid = "jamie@houselannister.com";
 
-	nockScope
+	requestScope
 		.get(`/userservice/management/v1/users/${userid}/user.json`)
 		.query(true)
 		.reply(200, {
