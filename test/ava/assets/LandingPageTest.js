@@ -1,4 +1,5 @@
 const test = require("ava");
+const qs = require("qs");
 const { requestScope } = require("../../nock");
 
 const testCredentials = require("../../../config.test");
@@ -154,16 +155,29 @@ test("Create new Landing Page", async t => {
 			return payload.name && payload.folder && payload.template;
 		})
 		.query(true)
-		.reply(200, {
-			success: true,
-			result: [
-				{
-					...mockLandingPageRecord.record,
-					id: randomNewRecordId,
-					status: "draft",
-				},
-			],
-		});
+		.reply(function(uri, requestBody) {
+            //  If we are using the form-urlencoded content-type, make sure to parse
+            const headers = this.req.headers
+            if(headers["content-type"] === "application/x-www-form-urlencoded") {
+                requestBody = qs.parse(requestBody)
+            }
+            console.log("requestBody", requestBody)
+            //  Check for necessary incoming payload props
+            if(requestBody.name && requestBody.description && requestBody.folder) {
+                return [200, {
+                    success: true,
+                    result: [
+                        {
+                            ...mockLandingPageRecord.record,
+                            id: randomNewRecordId,
+                            status: "draft",
+                        },
+                    ],
+                }]
+            }
+
+            return [404, "Error" ]
+        });
 
 	const newLp = new LandingPageManager(mockLandingPageRecord.create);
 	newLp.on("create_request", requestConfig => console.log(requestConfig));
